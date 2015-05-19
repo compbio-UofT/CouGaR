@@ -28,6 +28,8 @@ def to_chr(s):
 			return 23
 		if s=='y':
 			return 24
+		if s=='m':
+			return 25
 	return int(s)
 
 if len(sys.argv)!=4:
