@@ -8,6 +8,14 @@
 #1       25482036        25529549        4       -1.6003
 #1       25538212        27483586        409     -0.5603
 
+#Chromosome	Start	End	Tumor_Count	Normal_Count	Segment_Mean
+#chr1	10208	80595984	8866353	6918315	0.0244942024795493
+#chr1	80595985	80670588	7362	7263	-0.391768643137613
+#chr1	80670589	249240606	16753943	13041317	-0.00408394286779093
+#chr2	10001	78614929	8674657	7462512	-0.140789416365168
+#chr2	78614930	136507121	5575636	4348300	0.00181119735833432
+#chr2	136507122	136670882	23904	15143	0.31581618660609
+
 import sys
 
 if len(sys.argv)!=5:
@@ -28,7 +36,7 @@ for line in h:
 		continue
 	line=line.strip().split()
 	ln=len(line)
-	segl=int(line[ln-3])-int(line[ln-4])
+	segl=int(line[2])-int(line[1])
 	segs=float(line[ln-1])
 	if segl>l and segs>s:
 		segp+=1

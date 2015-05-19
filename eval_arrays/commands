@@ -1,0 +1,16 @@
+cat finding_sets_with_wgs/snp_samples_w_wgs | while read line; do grep $line tsvs_l40k_p2_s2_T  > /dev/null ; if [ $? -eq 0 ]; then echo $line; fi; done > to_run
+
+l=40000; p=2; s=2; cat tsvs | while read line; do echo $line | grep Ill > /dev/null; if [ $? -eq 0 ] ; then python cfy_illumina.py $line $l $p $s; else python cfy.py $line $l $p $s; fi; done > tsvs_l40k_p2_s2
+
+
+cat finding_sets_with_wgs/snp_samples_w_wgs | while read line; do grep $line tsvs_l20k_p2_s1.7_T  > /dev/null ; if [ $? -eq 0 ]; then echo $line; fi; done  > to_run_l20k_p2_s1.7
+
+
+cat to_run_l20k_p2_s1.7 | sort | uniq  | while read line; do echo qsub -q *@supa0* -l h_vmem=100g -S /bin/bash /filer/misko/mini_chr/git/minichr/grab_files_v3.sh $line /dupa-filer/misko/tcga/test_next/$line;  done | while read line; do if [ ! -d `echo $line | awk '{print $NF}' | sed 's/_next//g' ` -a ! -d `echo $line | awk '{print $NF}' | sed 's/_next//g' | sed 's/test/test\/bad_samples/g'` ]; then echo $line; fi; done
+
+
+
+
+l=15000; p=2; s=1.4; cat tsvs | while read line; do echo $line | grep Ill > /dev/null; if [ $? -eq 0 ] ; then python cfy_illumina.py ../$line $l $p $s; else python cfy.py ../$line $l $p $s; fi; done > tsvs_l15k_p2_s1.4
+grep "^T" tsvs_l15k_p2_s1.4 > tsvs_l15k_p2_s1.4_T
+cat finding_sets_with_wgs/snp_samples_w_wgs | while read line; do grep $line tsvs_l15k_p2_s1.4_T  > /dev/null ; if [ $? -eq 0 ]; then echo $line; fi; done  > to_run_l15k_p2_s1.4

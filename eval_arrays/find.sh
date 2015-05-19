@@ -1,0 +1,1 @@
+cat to_run  | while read line; do echo qsub -q *@supa0* -l h_vmem=100g -S /bin/bash /filer/misko/mini_chr/git/minichr/grab_files_v2.sh $line /dupa-filer/misko/tcga/test/$line;  done | while read line; do if [ ! -d `echo $line | awk '{print $NF}'` -a ! -d `echo $line | awk '{print $NF}' | sed 's/test/test\/bad_samples/g'` ]; then echo $line; fi; done | head
