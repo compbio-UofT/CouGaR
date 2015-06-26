@@ -13,7 +13,7 @@ Requirements
 
 Running
 -----------
-The CouGaR pipeline consists of X main stages
+The CouGaR pipeline consists of 5 main stages
 * BAM pre-processing
 * HMM pruning
 * Flow problem formulation and solving
