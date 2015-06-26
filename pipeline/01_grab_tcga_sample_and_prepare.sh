@@ -63,7 +63,7 @@ cov_mapq=20
 #	sp=`/bin/df -m /dupa-filer/  | grep dupa | awk '{print $3}'`
 #done
 
-python $g/get_analysis_ids.py downloadable.xml | while read line; do 
+python $g/tcga/get_analysis_ids.py downloadable.xml | while read line; do 
 	dname=`echo $line  | sed 's/.*download[/]\(.*\)/\1/g'`
 	#echo "dname is $dname"
 	$cg "analysis_id=${line}" -o get.xml
@@ -100,7 +100,7 @@ python $g/get_analysis_ids.py downloadable.xml | while read line; do
 	fi
 	rm get.xml
 	#write out the reference genome to a file
-	ref=`python $g/get_ref.py downloadable.xml | awk '{print $NF}' | head -n 1`
+	ref=`python $g/tcga/get_ref.py downloadable.xml | awk '{print $NF}' | head -n 1`
 	echo $ref > ref
 	echo $dname, $bamfile
 	if [ ! -e $bamfile ] ; then 
@@ -124,8 +124,8 @@ python $g/get_analysis_ids.py downloadable.xml | while read line; do
 		$s index tumor.bam
 		$s mpileup -q ${cov_mapq} tumor.bam | $g/getcov/get_cov tumor_cov 
 		#gzip tumor_cov
-		sh $g/make_clusters.sh tumor.bam 0 
-		sh $g/make_clusters.sh tumor.bam 15
+		sh $g/clustering/make_clusters.sh tumor.bam 0 
+		sh $g/clustering/make_clusters.sh tumor.bam 15
 		rm tumor.bam #comment this out if you want to keep the bam file!
 	else
 		echo $bamfile normal
@@ -133,11 +133,11 @@ python $g/get_analysis_ids.py downloadable.xml | while read line; do
 		$s index normal.bam
 		$s mpileup -q ${cov_mapq} normal.bam | $g/getcov/get_cov normal_cov 
 		#gzip normal_cov
-		sh $g/make_clusters.sh normal.bam 0 
-		sh $g/make_clusters.sh normal.bam 15 
+		sh $g/clustering/make_clusters.sh normal.bam 0 
+		sh $g/clustering/make_clusters.sh normal.bam 15 
 		rm normal.bam #comment this out if you want to keep the bam file!
 
- 		$g/get_group.sh downloadable.xml > subset
+ 		$g/tcga/get_group.sh downloadable.xml > subset
 	fi
 done
 

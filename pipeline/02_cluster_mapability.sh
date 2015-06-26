@@ -24,7 +24,7 @@ function moverlap {
 	cat $wd/nsubtract_centrosubtract_1000bp | sed 's/\(chr[^:]*\):\([0-9]*\)\([+-]\)\s\(chr[^:]*\):\([0-9]*\)\([+-]\)/\1\t\2\t\3\t\4\t\5\t\6/g' | awk '{OFS="\t"; type=0; if ($3=="+") {if ($6=="+") {type=0} else {type=2} } else { if ($6=="+") {type=3} else {type=1} }; print $1,$2,$5,type,$7,0,0,0.0,0,$4,"EDGE" }' > $wd/nsubtract_centrosubtract_1000bp_links
 
 	#run the hmm using the tumor and normal coverage by also applying priors for copy number transistion on cluster break point locations
-	$g/hmm_chrm $wd/nsubtract_centrosubtract_1000bp_links ${wd}/tumor_cov.gz ${wd}/normal_cov.gz 0 > ${wd}/hmm
+	$g/hmm/hmm_chrm $wd/nsubtract_centrosubtract_1000bp_links ${wd}/tumor_cov.gz ${wd}/normal_cov.gz 0 > ${wd}/hmm
 
 	#compute mapqs around the breakpoints of each cluster
         while read line; do 
