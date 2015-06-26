@@ -7,6 +7,7 @@ cg=/usr/bin/cgquery
 gt=/usr/bin/gtdownload
 key=/dupa-filer/misko/tcga/cghub.key
 p=/filer/misko/picard/picard-tools-1.56/
+gurobi=/dupa-filer/misko/gurobi/gurobi550/linux64/bin/gurobi_cl
 
 #need this for gurobi
 #export LD_LIBRARY_PATH=/home/buske/arch/sge6/lib:/home/buske/arch/sge6/lib::/dupa-filer/misko/gurobi/gurobi550/linux64/lib/:/dupa-filer/misko/gurobi/gurobi550/linux64/lib/

@@ -9,8 +9,8 @@ if [ ! -d "$COUGARD" ] ; then echo "COUGARD enviornment variable is not set prop
 
 
 
-if [ $# -ne 4 ]; then
-	echo $0 "ID_folder_name tumor_bam normal_bam ref[hg18/hg19]"
+if [ $# -ne 5 ]; then
+	echo $0 "ID_folder_name tumor_bam normal_bam ref[hg18/hg19] group[anygrouplabel]"
 	exit
 fi
 
@@ -18,6 +18,7 @@ wd=$1
 tumor_bamfilename=$2
 normal_bamfilename=$3
 ref=$4
+group=$5
 
 if [ "$ref" == "hg18" ] ; then 
 	echo "is hg18"
@@ -36,7 +37,7 @@ fi
 mkdir -p $wd 
 pushd $wd
 	echo $ref > ref
-
+	echo $group > subset
 	bamfile=$tumor_bamfilename
 	echo $bamfile tumor
 	ln -s $bamfile tumor.bam

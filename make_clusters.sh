@@ -1,6 +1,6 @@
 #!/bin/bash
 
-g=/filer/misko/mini_chr/git/minichr/
+g=/dupa-filer/misko/cougar/CouGaR/
 p=/filer/misko/picard/picard-tools-1.56/
 s=/home/misko/apps/bin/samtools
 j=/usr/bin/java

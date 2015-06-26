@@ -136,6 +136,8 @@ python $g/get_analysis_ids.py downloadable.xml | while read line; do
 		sh $g/make_clusters.sh normal.bam 0 
 		sh $g/make_clusters.sh normal.bam 15 
 		rm normal.bam #comment this out if you want to keep the bam file!
+
+ 		$g/get_group.sh downloadable.xml > subset
 	fi
 done
 
