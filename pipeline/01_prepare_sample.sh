@@ -54,6 +54,6 @@ pushd $wd
 	sh $g/make_clusters.sh normal.bam 0 &
 	sh $g/make_clusters.sh normal.bam 15 &
 wait
-	rm tumor.bam
-	rm normal.bam
+	#rm tumor.bam
+	#rm normal.bam
 popd
