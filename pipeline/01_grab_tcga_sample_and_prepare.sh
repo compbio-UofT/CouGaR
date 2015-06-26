@@ -1,0 +1,144 @@
+#!/bin/bash
+
+#check that COUGARD has been properly set
+if [ -z "$COUGARD" ]; then echo "Please set COUGAR directory COUGARD=path"; exit; fi
+if [ ! -d "$COUGARD" ] ; then echo "COUGARD enviornment variable is not set properly"; exit; fi
+
+#load the configuation 
+. $COUGARD/cougar_conf.sh
+
+if [ $# -ne 2 ]; then
+	echo $0 TCGA_id wd
+	exit
+fi
+
+tid=$1
+wd=$2
+
+if [ -d $wd -a `ls $wd | wc -l | awk '{print $1}'` -ne 1 ]; then 
+	echo Directory exists! $wd
+	exit
+fi
+
+mkdir -p $wd 
+pushd $wd
+
+$cg "filename=*${tid}*&library_strategy=WGS" -o downloadable.xml
+files=`cat downloadable.xml | grep downloadable_file_count | sed 's/.*>\([0-9]*\)<.*/\1/g'`
+echo There are $files files to be downloaded 
+# if [ $files -ne 4 ] then 
+#	echo "File downloaded aborted wrong count"
+#	exit
+# fi
+
+found_normal=0
+found_tumor=0
+
+#grab a download space
+dwndir=/dupa-filer/misko/tcga_data/downloads/
+
+candownload=0
+
+cov_mapq=20
+
+#grab a download lock
+#echo Grabbing download lock...
+#while [ $candownload -eq 0 ]; do
+#	max_downloads=`cat ${dwndir}/max_downloads`
+#	sleep $[ ( $RANDOM % 60 )  + 1 ]
+#	n=`ls ${dwndir} | wc -l`
+#	echo waiting for download lock $n
+#	if [ $n -lt ${max_downloads} ] ; then
+#		touch ${dwndir}/$tid
+#		candownload=1
+#	fi
+#done
+#echo Have download lock...
+
+#wait for empty space before download
+#sp=`/bin/df -m /dupa-filer/  | grep dupa | awk '{print $3}'`
+#while [ $sp -lt 1200000 ] ; do
+#	sleep 60
+#	echo waiting for space
+#	sp=`/bin/df -m /dupa-filer/  | grep dupa | awk '{print $3}'`
+#done
+
+python $g/get_analysis_ids.py downloadable.xml | while read line; do 
+	dname=`echo $line  | sed 's/.*download[/]\(.*\)/\1/g'`
+	#echo "dname is $dname"
+	$cg "analysis_id=${line}" -o get.xml
+	$gt -k 5 --peer-timeout 30 -v -c $key -d get.xml
+	bamfile=$dname/*.bam
+	ls -l $bamfile
+	#check the MD5
+	echo $bamfile
+	if [ ! -e $bamfile ] ; then 
+		echo "DID NOT GET BAM FILE!"
+		rm normal.bam
+		rm tumor.bam
+		#rm ${dwndir}/$tid #when using download locks
+		touch fail
+		exit 100 #SGE ERROR
+	fi
+	md5=`md5sum $bamfile | awk '{print $1}'`
+	echo MD5 is $md5
+	echo "XXXXX"
+	grep -i md5 get.xml
+	echo "XXXXX"
+	grep -i md5 downloadable.xml
+	echo "XXXXX"
+	grep -i $md5 get.xml > /dev/null
+	if [ $? -eq 0 ]; then 
+		echo "md5 is ok"
+	else 
+		echo "md5 is not ok"
+		rm normal.bam
+		rm tumor.bam
+		#rm ${dwndir}/$tid #when using download locks
+		touch fail
+		exit 100 #SGE ERROR
+	fi
+	rm get.xml
+	#write out the reference genome to a file
+	ref=`python $g/get_ref.py downloadable.xml | awk '{print $NF}' | head -n 1`
+	echo $ref > ref
+	echo $dname, $bamfile
+	if [ ! -e $bamfile ] ; then 
+		echo DID NOT DOWNLOAD BAM FILE! ERROR
+		rm normal.bam
+		rm tumor.bam
+		rm ${dwndir}/$tid
+		touch fail
+		exit 100 #SGE ERROR
+	fi
+	info=`echo $bamfile | sed 's/.*TCGA-\([A-Z0-9][A-Z0-9]\)-\([A-Z0-9][A-Z0-9][A-Z0-9][A-Z0-9]\)-\([A-Z0-9][A-Z0-9]\)\([A-Z]\)-.*/\1 \2 \3 \4/g'`
+	tss=`echo $info | awk '{print $1}'`
+	participant=`echo $info | awk '{print $2}'`
+	sample=`echo $info | awk '{print $3}'`
+	vial=`echo $info | awk '{print $4}'`
+	echo $tss X $participant X $sample X $vial X $info
+
+	if [ $sample -lt 10 ] ; then
+		echo $bamfile tumor
+		mv $bamfile tumor.bam
+		$s index tumor.bam
+		$s mpileup -q ${cov_mapq} tumor.bam | $g/getcov/get_cov tumor_cov 
+		#gzip tumor_cov
+		sh $g/make_clusters.sh tumor.bam 0 
+		sh $g/make_clusters.sh tumor.bam 15
+		rm tumor.bam #comment this out if you want to keep the bam file!
+	else
+		echo $bamfile normal
+		mv $bamfile normal.bam
+		$s index normal.bam
+		$s mpileup -q ${cov_mapq} normal.bam | $g/getcov/get_cov normal_cov 
+		#gzip normal_cov
+		sh $g/make_clusters.sh normal.bam 0 
+		sh $g/make_clusters.sh normal.bam 15 
+		rm normal.bam #comment this out if you want to keep the bam file!
+	fi
+done
+
+#remove the download lock
+rm ${dwndir}/$tid
+
