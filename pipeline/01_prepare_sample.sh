@@ -20,18 +20,26 @@ normal_bamfilename=$3
 ref=$4
 group=$5
 
-if [ "$ref" == "hg18" ] ; then 
-	echo "is hg18"
-elif [ "$ref" == "hg19" ] ; then 
-	echo "is hg19"
-else
+cov_mapq=20
+
+if [ "$ref" != "hg18" -a "$ref" != "hg19" ] ; then 
 	echo "Reference genome is unrecognized, please use either hg19 or hg18"
 	exit
 fi
 
-if [ -d $wd -a `ls $wd | wc -l | awk '{print $1}'` -ne 1 ]; then 
+if [ -d "$wd" ]; then 
 	echo Directory exists! $wd
 	#exit
+fi
+
+if [ ! -e ${tumor_bamfilename} ] ; then 
+	echo Tumor bam file \"${tumor_bamfilename}\" does not exist
+	exit
+fi
+
+if [ ! -e ${normal_bamfilename} ] ; then 
+	echo normal bam file \"${normal_bamfilename}\" does not exist
+	exit
 fi
 
 mkdir -p $wd 
@@ -39,21 +47,27 @@ pushd $wd
 	echo $ref > ref
 	echo $group > subset
 	bamfile=$tumor_bamfilename
-	echo $bamfile tumor
+	echo Using $bamfile as tumor BAM ...
 	ln -s $bamfile tumor.bam
+	echo Indexing tumor BAM
 	$s index tumor.bam
-	$s mpileup -q ${cov_mapq} tumor.bam | $g/getcov/get_cov tumor_cov 
-	sh $g/make_clusters.sh tumor.bam 0 &
-	sh $g/make_clusters.sh tumor.bam 15 &
+	echo Creating coverage file for tumor BAM
+	$s mpileup -q ${cov_mapq} tumor.bam 2>/dev/null | $g/getcov/get_cov tumor_cov 
+	echo Background cluster generation for tumor BAM
+	sh $g/clustering/make_clusters.sh tumor.bam 0 &
 
 	bamfile=$normal_bamfilename
-	echo $bamfile normal
+	echo Using $bamfile as normal BAM ...
 	ln -s $bamfile normal.bam
+	echo Indexing normal BAM
 	$s index normal.bam
-	$s mpileup -q ${cov_mapq} normal.bam | $g/getcov/get_cov normal_cov 
-	sh $g/make_clusters.sh normal.bam 0 &
-	sh $g/make_clusters.sh normal.bam 15 &
+	echo Creating coverage file for normal BAM
+	$s mpileup -q ${cov_mapq} normal.bam 2>/dev/null | $g/getcov/get_cov normal_cov 
+	echo Background cluster generation for normal BAM
+	sh $g/clustering/make_clusters.sh normal.bam 0 &
+echo Waiting for cluster generation to finish ... 
 wait
+echo All done
 	#rm tumor.bam
 	#rm normal.bam
 popd

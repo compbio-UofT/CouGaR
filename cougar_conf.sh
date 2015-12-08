@@ -2,7 +2,7 @@ g=$COUGARD
 s=/home/misko/apps/bin/samtools
 j=/usr/bin/java
 b=/filer/misko/bedtools-2.17.0/ # i dont think this is actually used anymore.... 
-c=$g/dependencies/cs2.exe
+c=$g/dependencies/cs2/cs2.exe
 cg=/usr/bin/cgquery
 gt=/usr/bin/gtdownload
 key=/dupa-filer/misko/tcga/cghub.key #required if you are downloading TCGA data
@@ -16,6 +16,11 @@ export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/dupa-filer/misko/gurobi/gurobi550/lin
 
 
 
+if [ ! -d ${g} ] ; then
+	echo "Failed to find GouGaR path installed... ${g} is not valid"
+	echo "Please update $COUGARD/cougar_conf.sh"
+	exit
+fi
 if [ ! -f ${gurobi} ] ; then
 	echo "Failed to find GUROBI installed... ${gurobi} is not valid"
 	echo "Please update $COUGARD/cougar_conf.sh"

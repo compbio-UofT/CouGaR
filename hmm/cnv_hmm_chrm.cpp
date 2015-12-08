@@ -13,7 +13,7 @@
 #include <omp.h>
 #include <queue>
 #include <math.h>
-
+#include <assert.h>
 #define THREADS	32
 
 
@@ -91,7 +91,7 @@ set<pos> bps;
 map<edge, edge_info > edges;
 edge_info re_edges(edge & key) {
 	if (edges.find(key)==edges.end()) {
-		cerr << "ERROR IN EDGE LOOKUP" << endl;
+		cerr << "HMM: ERROR IN EDGE LOOKUP" << endl;
 		exit(1);
 	}
 	return edges[key];
@@ -100,7 +100,7 @@ edge_info re_edges(edge & key) {
 map<pos, set<pos> > free_edges;
 set<pos> re_free_edges(pos & key) {
 	if (free_edges.find(key)==free_edges.end()) {
-		cerr << "ERROR IN FREE EDGE LOOKUP" << endl;
+		cerr << "HMM: ERROR IN FREE EDGE LOOKUP" << endl;
 		exit(1);
 	}
 	return free_edges[key];
@@ -336,11 +336,21 @@ int to_chr(const char * s) {
 }*/
 
 //read in the edges from clustering
-void read_links(char * filename) {
+void read_links(char * filename, char * ref ) {
 
 
 	//insert the stoppers
-	unsigned int lengths[]={249250621,243199373,198022430,191154276,180915260,171115067,159138663,146364022,141213431,135534747,135006516,133851895,115169878,107349540,102531392,90354753,81195210,78077248,59128983,63025520,51304566,48129895,155270560,59373566,16571};
+	unsigned int lengths_hg18[]={247249719,242951149,199501827,191273063,180857866,170899992,158821424,146274826,140273252,135374737,134452384,132349534,114142980,106368585,100338915,88827254,78774742,76117153,63811651,62435964,46944323,49691432,154913754,57772954,16571};
+	unsigned int lengths_hg19[]={249250621,243199373,198022430,191154276,180915260,171115067,159138663,146364022,141213431,135534747,135006516,133851895,115169878,107349540,102531392,90354753,81195210,78077248,59128983,63025520,48129895,51304566,155270560,59373566,16571};
+	unsigned int * lengths  = NULL;
+	if (strcmp(ref,"hg18")==0) {
+		lengths = lengths_hg18;
+	} else if (strcmp(ref,"hg19")==0) {
+		lengths = lengths_hg19;
+	} else {
+		cerr << "HMM: reference is not valid.. please use hg18 or hg19 " << endl;
+		exit(1);
+	}
 	for (int i=0; i<25; i++) {
 		pos p = pos(i+1,MAX_EDGE_SIZE+1);
 		bps.insert(p);
@@ -374,17 +384,17 @@ void read_links(char * filename) {
 		pos posb=pos(nchrb,bpb);
 
 		if (bpa<MAX_EDGE_SIZE || bpb<MAX_EDGE_SIZE) {
-			cerr << "SKIPPING LINK" << endl;
+			cerr << "HMM: SKIPPING LINK" << endl;
 			continue;
 		}
 
 		if (nchra>26 || nchrb>26) {
-			cerr << "ERROR READING IN LINKS" << endl;
+			cerr << "HMM: ERROR READING IN LINKS" << endl;
 			exit(1);
 		}
 
 		if (posa.chr>26 || posb.chr>26) {
-			cerr << "EDGE EROR" << endl;
+			cerr << "HMM: EDGE EROR" << endl;
 		}
 		bps.insert(posa);
 		bps.insert(posb);
@@ -418,15 +428,19 @@ void read_links(char * filename) {
 		edges[eb].supporting=total;
 		edges[eb].bp=eb.length();
 	}
-	cerr << "Read " << total_links << " links from " << filename << endl;	
+	cerr << "HMM: Read " << total_links << " links from " << filename << endl;	
 	return ;
 }
 
-
+typedef struct __attribute__((__packed__)) struct_cov { 
+	unsigned short chr;
+	unsigned int pos;
+	unsigned short cov;
+} struct_cov;
 
 
 void read_cov(char * filename, bool normal) {
-	cerr << "Reading coverage from file " << filename << endl;
+	cerr << "HMM: Reading coverage from file " << filename << endl;
 
 	gzFile fptr = gzopen(filename,"r");
 	if (fptr==NULL) {
@@ -441,7 +455,7 @@ void read_cov(char * filename, bool normal) {
 	size_t size_so_far = 0;
 	char * buffer = (char*) malloc(chunk);
 	if (buffer==NULL) {
-		cerr << " FALLED TO MALLOC " << endl;
+		cerr << "HMM: FALLED TO MALLOC " << endl;
 		exit(1);
 	}
 	
@@ -463,31 +477,30 @@ void read_cov(char * filename, bool normal) {
 		//size_t read = fread(buffer+size_so_far,1,chunk,fptr);
 		size_t read = gzread(fptr, buffer+size_so_far,chunk); 
 		size_so_far+=read;
-		cerr << "Read so far " << size_so_far << endl;
+		cerr << "HMM: Read so far " << size_so_far << endl;
 
 		if (read==chunk) {
-			cerr << "REALLOC" << endl;
+			cerr << "HMM: REALLOC" << endl;
 			exit(1);
 			buffer=(char*)realloc(buffer,size_so_far+chunk);
 			if (buffer==NULL) {
-				cerr << " FALLED TO REALLOC " << endl;
+				cerr << "HMM: FALLED TO REALLOC " << endl;
 				exit(1);
 			}
 		}
 	}
 	
 	//lets get a buffer to fit the file	
-	cerr << "Done reading file  " << size_so_far <<  endl;
+	cerr << "HMM: Done reading file  " << size_so_far <<  endl;
 
 	size_t sz = size_so_far;	
 
 	unsigned int entries = sz/soe;
 	unsigned long total_coverage=0;
-	unsigned long total_length=0;
 
-	cerr << "started processing" << endl;
+	cerr << "HMM: started processing" << endl;
 
-	
+	assert(sizeof(struct_cov)==soe);	
 	//omp_set_num_threads(MIN(24,THREADS));
 	#pragma omp parallel 
 	{
@@ -495,7 +508,6 @@ void read_cov(char * filename, bool normal) {
 	unsigned int thread_id = omp_get_thread_num();
 	//cerr << "thread " <<  thread_id << endl;
 	unsigned long total_coverage_t=0;
-	unsigned long total_length_t=0;
 
 	map<edge, edge_info > edges_t;
 
@@ -505,11 +517,13 @@ void read_cov(char * filename, bool normal) {
 	unsigned short chr, cov;
 	unsigned int coord;
 	//cerr << "started processing x2" << endl;
-	for (unsigned int i=0; i<entries; i++) {
-		if (i%threads!=thread_id) {
-			continue; // not our job!
-		}
-		char* base = buffer+i*soe;
+	unsigned int my_entries = entries / threads + ( thread_id < (entries %threads) );
+	unsigned int my_offset = thread_id*(entries / threads ) + MIN(thread_id,entries%threads);	
+	unsigned int i=0; 
+	while (i<my_entries) {
+	//for (unsigned int i=0; i<my_entries; i++) {
+		struct_cov * cov_e = (struct_cov*) (buffer+(i+my_offset)*soe);
+		/*char* base = buffer+i*soe;
 		chr=*((unsigned short *)base);
 		if (chr==26 || chr==0) {
 			continue;
@@ -517,40 +531,58 @@ void read_cov(char * filename, bool normal) {
 		base+=sizeof(unsigned short);
 		coord=*((unsigned int *)base);
 		base+=sizeof(unsigned int);
-		cov=*((unsigned short *)base);
+		cov=*((unsigned short *)base);*/
+		chr = cov_e->chr;
+		coord = cov_e->pos;
+		cov = cov_e->cov;
 
 		total_coverage_t+=cov;
-
 		
 		pos p = pos(chr,coord);
+		//if its a new chromosome then rewind all breakpoints
 		if (p.chr!=it->chr) {
-			//cerr << "Switching chr from " << it->chr << " to " << p.chr << endl;
-			//cerr << "Restarting looking for pos " << chr << " : " << coord << ", was at " << it->chr << " : " << it->coord << endl;
-			//it=bps.lower_bound(p);
-			//it--;
 			it=bps.begin();
 		}
+		//find the last breakpoint that starts before this position
 		while (p>*it && it!=bps.end()) {
 			prev=*it;
 			it++;
 		}
-		//cout << p.str() << endl;
+		//if such doesnt exist, then break
 		if (it==bps.end()) {
-			//cout << "broke at " << p.first << " " << p.second << "    " << (*it).first << " " << (*it).second << endl;
 			break;	
 		}
+		if (it->coord==1 && it->chr!=prev.chr) {
+			#pragma omp critical 
+			{
+				cerr << "HMM: fell off the end of a chromosome... uh oh.. " << endl;
+				cerr << "HMM: " << p.chr <<  " " << p.coord << " vs " << it->chr << " " << it->coord << " " << i << " " << thread_id << endl;
+			}
+		}
+		//}
+		//if this is an edge , same chromosome then add the coverage
 		if (prev.chr==chr) {
+			unsigned int cov_int = 0;
+			while (cov_e->chr==prev.chr && cov_e->pos<=it->coord && i<my_entries) {
+				//if (thread_id==2) 
+				//cerr << "adding " << cov_e->chr << " " << cov_e->pos << " to " << prev.chr << " " << prev.coord << " - " << it->chr << " " << it->coord << " " << cov_int << " " << cov_e->cov << endl; 
+				cov_int += cov_e->cov;
+				cov_e++;
+				i++;
+			}
+
 			edge ea = edge(prev,*it);
 			edge eb = ea.reverse();
-			total_length_t+=(*it).coord-prev.coord;
-
+	
 			if (normal) {
-				edges_t[ea].normal_coverage+=cov;
-				edges_t[eb].normal_coverage+=cov;
+				edges_t[ea].normal_coverage+=cov_int;
+				edges_t[eb].normal_coverage+=cov_int;
 			} else {
-				edges_t[ea].cancer_coverage+=cov;
-				edges_t[eb].cancer_coverage+=cov;
+				edges_t[ea].cancer_coverage+=cov_int;
+				edges_t[eb].cancer_coverage+=cov_int;
 			}
+		} else {
+			i++;
 		}
 
 	}
@@ -563,26 +595,12 @@ void read_cov(char * filename, bool normal) {
 		for (map<edge,edge_info>::iterator mit=edges_t.begin(); mit!=edges_t.end(); mit++) {
 			edges[mit->first].normal_coverage+=mit->second.normal_coverage;
 			edges[mit->first].cancer_coverage+=mit->second.cancer_coverage;
-			total_length+=total_length_t;
 		}
 	}
 	} //end openmp section
-	cerr << " done processing " << endl;
+	cerr << "HMM: done processing " << endl;
 
 
-	//lets take out the weird sections from the fractionization
-	unsigned long total_coverage_effective = 0;
-	double average = ((double)total_coverage)/((double)total_length);
-	for (map<edge,edge_info>::iterator mit=edges.begin(); mit!=edges.end(); mit++) {
-
-		if (normal && (mit->first).length()*average*5>=edges[mit->first].normal_coverage) {
-			total_coverage_effective+=edges[mit->first].normal_coverage;
-		}	
-		
-		if (!normal && (mit->first).length()*average*5>=edges[mit->first].cancer_coverage) {
-			total_coverage_effective+=edges[mit->first].normal_coverage;
-		}
-	}
 
 
 
@@ -593,7 +611,7 @@ void read_cov(char * filename, bool normal) {
 			edges[mit->first].normal_coverage/=total_coverage;
 		} else {
 			if (total_normal_coverage<100) {
-				cerr << "Must read in normal before cancer coverages! " << endl;
+				cerr << "HMM: Must read in normal before cancer coverages! " << endl;
 				exit(1);
 			}
 			total_cancer_coverage=total_coverage;
@@ -604,14 +622,14 @@ void read_cov(char * filename, bool normal) {
 		}
 	}
 
-	cerr << "total: " << total_coverage << endl;
+	cerr << "HMM: total: " << total_coverage << endl;
 	free(buffer);
 }
 
 int main(int argc, char ** argv) {
 	//need to load in files
-	if (argc!=5) {
-		printf("%s links cov_cancer cov_normal contam(0-0.9)\n", argv[0]);
+	if (argc!=6) {
+		printf("%s links cov_cancer cov_normal contam(0-0.9) hg18/hg19\n", argv[0]);
 		exit(1);
 	}
 
@@ -625,6 +643,11 @@ int main(int argc, char ** argv) {
 		cerr << "contam " << tao << " is not in range (0-0.9) " << endl;
 		exit(1);
 	}
+	char * ref=argv[5];
+	if (strcmp(ref,"hg18")!=0 and strcmp(ref,"hg19")!=0) {
+		cerr << "please use hg18 or hg19 for ref" << endl;
+		exit(1);
+	}	
 
 	cout << "#" << MAX_FLOW << "\t" << links_filename << "\t" << cov_cancer_filename << "\t" << cov_normal_filename << endl;
 
@@ -637,9 +660,9 @@ int main(int argc, char ** argv) {
 	//unsigned long total_normal_paired_mappings = read_arcs(pairs_normal_filename,true);	
 	//unsigned long total_cancer_paired_mappings = read_arcs(pairs_cancer_filename,false);	
 	//read in the free edges
-	read_links(links_filename);
+	read_links(links_filename,ref);
 
-	cerr << "Slicing edges" << endl;
+	cerr << "HMM: Slicing edges" << endl;
 	//cerr << "Slicing WARNING edges" << endl;
 	//lets slice up the rest
 	set<pos> to_add;
@@ -700,14 +723,14 @@ int main(int argc, char ** argv) {
 	}
 	for (set<pos>::iterator it=to_add.begin(); it!=to_add.end(); it++) {
 		if ( (*it).chr>26 ) {
-			cerr << "ERROR IN SPLICING!" << endl;
+			cerr << "HMM: ERROR IN SPLICING!" << endl;
 			exit(1);
 		}
 		bps.insert(*it);
 	}
 
 	
-	cerr << "Init edges" << endl;
+	cerr << "HMM: Init edges" << endl;
 	//initialize the rest of the edges, so can multithread
 	for (set<pos>::iterator it=bps.begin(); it!=bps.end(); ) {
 		free_edges[*it].size();		
@@ -735,7 +758,7 @@ int main(int argc, char ** argv) {
 	read_cov(cov_cancer_filename,false);
 
 	//read in the pairs coverage
-	cerr << "Done reading in data..." << endl;
+	cerr << "HMM: Done reading in data..." << endl;
 
 	set<pos>::iterator sit = bps.begin(); 
 	pos previous;
@@ -758,11 +781,11 @@ int main(int argc, char ** argv) {
 		sit++;
 	}
 
-	cerr << "Starting HMM..." << endl;
+	cerr << "HMM: Starting HMM..." << endl;
 
 	double * states = (double*)malloc(sizeof(double)*STATES*(bps.size()+2));
 	if (states==NULL) {
-		cerr << "AMLLOC ERROC " << endl;
+		cerr << "HMM: MALLOC ERROC " << endl;
 		exit(1);
 	}
 
@@ -798,6 +821,7 @@ int main(int argc, char ** argv) {
 
 	
 			double emission[STATES];
+			#pragma omp parallel for
 			for (int i=0; i<STATES; i++) {
 				if (normal_coverage>=30) {
 					if (i==0) {
@@ -825,6 +849,7 @@ int main(int argc, char ** argv) {
 				}
 			}
 			double transistion[STATES*STATES];
+			#pragma omp parallel for
 			for (int i=0; i<STATES; i++) {
 				double p=0;
 				if (!can_rise && !can_drop) {
@@ -849,26 +874,6 @@ int main(int argc, char ** argv) {
 						transistion[STATES*i+j]=p;
 					}
 				}
-				/*if (can_rise && !can_drop) {
-					for (int j=0; j<5; j++) {
-						if (i<=j) {
-							p=log(0.99/(j-i+1));
-						} else if (j>i) {
-							p=log(0.0025/(5-(j-i+1)));
-						}
-						transistion[5*i+j]=p;
-					}
-				}
-				if (!can_rise && can_drop) {
-					for (int j=0; j<5; j++) {
-						if (i>=j) {
-							p=log(0.99/(i-j+1));
-						} else if (j>i) {
-							p=log(0.0025/(5-(i-j+1)));
-						}
-						transistion[5*i+j]=p;
-					}
-				}*/
 			}
 
 
@@ -880,26 +885,20 @@ int main(int argc, char ** argv) {
 				back_t[i]=0;
 			}
 
+			#pragma omp parallel for
 			for (int i=0; i<STATES; i++) {
 				for (int j=0; j<STATES; j++) {
 					double  z = transistion[STATES*j+i]+states[(s-1)*STATES+j]+emission[i];
 					if (z>states[s*STATES+i]) {
 						states[s*STATES+i]=z;
+						#pragma omp critical 
+						{
 						back_t[i]=j;
+						}
 					}
 				}	
 			}		
 
-			/*
-			int min=0;
-			for (int i=0; i<5; i++) {
-				if (states[5*s+i]<states[5*s+min]) {
-					min=i;
-				}
-			}
-			for (int i=0; i<5; i++) {
-				states[5*s+i]-=states[5*s+min];
-			}*/
 
 			state_to_edge[s]=pair<edge,map<int,int> >(e,back_t); 
 
@@ -921,6 +920,7 @@ int main(int argc, char ** argv) {
 			}*/
 			s++;
 		} else if (p.chr!=0) {
+			cout << "HMM C:" << c.str() << endl; 
 			//lets drop the states
 			map<int, int> viterbi;
 			int max=0; 
@@ -946,6 +946,7 @@ int main(int argc, char ** argv) {
 				max = back_t[max];
 				s--;
 			}
+			#pragma omp parallel for
 			for (int i=0; i<STATES; i++) {
 				states[i]=1.0/STATES;
 			}
@@ -1056,6 +1057,6 @@ int main(int argc, char ** argv) {
 		//cout << cp << "\t" << e.posa.str() << "\t" << e.posb.str() << "\t" << e.length() << endl;
 	}
 
-	cerr << "CLEAN" << endl;	
+	cerr << "HMM: CLEAN" << endl;	
 	return 0;
 }

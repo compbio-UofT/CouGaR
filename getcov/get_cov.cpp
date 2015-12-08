@@ -50,7 +50,7 @@ int main (int argc, char ** argv) {
 		return 1;
 	}
 
-	cerr << buffer << endl;
+	//cerr << buffer << endl;
 
 	string chr,nucleo;
 	unsigned int pos;

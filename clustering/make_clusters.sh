@@ -13,8 +13,6 @@ if [ $# -ne 2 ]; then
 	exit
 fi
 
-cluster_mapq=$6
-
 
 bam=$1
 if [ ! -f $bam ]; then
@@ -34,13 +32,13 @@ echo `date` $0 $@ " making clusters clustermapq:" ${clustermapq} >> ${bam}_comma
 
 function mcluster {
 	msfile=`echo $bam | sed 's/.bam/_mean_and_std.txt/g'`
-	if [ ! -f $msfile -o `cat $msfile | awk 'END {print NR}'` -lt 1 ]; then
-		echo failed to find mean and std file!
-		$j -jar $p/CollectInsertSizeMetrics.jar VALIDATION_STRINGENCY=SILENT H=${bam}_histo I=${bam} O=${bam}_stats AS=true 
+	if [ ! -f $msfile -o `cat $msfile 2>/dev/null | awk 'END {print NR}'` -lt 1 ]; then
+		echo Did not find mean and std file for ${bam} ! - generating ... 
+		$j -jar $p/CollectInsertSizeMetrics.jar VALIDATION_STRINGENCY=SILENT H=${bam}_histo I=${bam} O=${bam}_stats AS=true 2>&1 > /dev/null
 		cat ${bam}_stats | awk '{print $5,$6}' | grep -A 1 DEVI | tail -n 1 > ${msfile}
 	fi
 	if [ ! -f $msfile ] ; then
-		echo failed to make insert size metrics
+		echo failed to make insert size metrics for ${bam}
 		exit
 	fi
 	local mean=`cat $msfile | awk '{print int($1)}'`
@@ -57,8 +55,8 @@ function mcluster {
 	sz=0
 	fi
 	if [ ! -e $outa -o $sz -lt 30 ]; then 
-		rm $outa
-		echo Generating base clusters
+		rm $outa > /dev/null
+		echo Generating base clusters for $bam
 		$s view -q ${clustermapq} ${bam} | python $g/clustering/filter_bwa_mq.py ${clustermapq} | $cluster $mean $stddev | gzip > ${outa}_wchrM
 		zgrep -v chrM ${outa}_wchrM | gzip > $outa
 	else
