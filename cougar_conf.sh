@@ -7,12 +7,15 @@ cg=/usr/bin/cgquery
 gt=/usr/bin/gtdownload
 key=/dupa-filer/misko/tcga/cghub.key #required if you are downloading TCGA data
 p=$g/dependencies/picard-tools-1.56/ #this should be in this repo.. 
-gurobi=/dupa-filer/misko/gurobi/gurobi550/linux64/bin/gurobi_cl
+gurobi=/dupa-filer/misko/gurobi/gurobi650/linux64/bin/gurobi_cl
+
+hgref=$g/refs
+
 
 
 #need this for gurobi
 #export LD_LIBRARY_PATH=/home/buske/arch/sge6/lib:/home/buske/arch/sge6/lib::/dupa-filer/misko/gurobi/gurobi550/linux64/lib/:/dupa-filer/misko/gurobi/gurobi550/linux64/lib/
-export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/dupa-filer/misko/gurobi/gurobi550/linux64/lib/
+export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/dupa-filer/misko/gurobi/gurobi650/linux64/lib/
 
 
 
@@ -43,3 +46,19 @@ if [ ! -f ${c} ] ; then
 	exit
 fi
 
+
+
+hgref=$g/refs
+
+if [ ! -d $hgref ]; then
+	mkdir $hgref
+	pushd $hgref
+	chrs="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y M"
+	hgs="18 19"
+	for hg in $hgs ; do 
+		for chr in $chrs ; do 
+			wget -O - http://hgdownload.cse.ucsc.edu/goldenpath/hg${hg}/chromosomes/chr${chr}.fa.gz | gunzip 
+		done | gzip > hg${hg}.fa.gz
+	done
+	popd
+fi

@@ -29,7 +29,7 @@ function mwalker {
         $g/mapability/bigWigAverageOverBed $g/mapability/$ref/* nsubtract_centrosubtract_1000bp.bed nsubtract_centrosubtract_1000bp.bed.out
         cat nsubtract_centrosubtract_1000bp.bed.out | awk '{print $1,$NF}' > nsubtract_centrosubtract_1000bp_mqs 
 
-	$g/walker/walker_new $wd/nsubtract_centrosubtract_1000bp ${wd}/hmm N 0 ${m} 2 > walker_out_q${i}sq${sq}_m${m}
+	$g/walker/walker_new nsubtract_centrosubtract_1000bp hmm N 0 ${m} 2 > walker_out_q${i}sq${sq}_m${m}
 	mv problem_file.gz problem_file_q${i}sq${sq}_m${m}.gz
 	zcat  problem_file_q${i}sq${sq}_m${m}.gz | /data/misko/2013.04.12/cs2-4.3/cs2.exe | gzip > solved_q${i}sq${sq}_m${m}.gz
 	

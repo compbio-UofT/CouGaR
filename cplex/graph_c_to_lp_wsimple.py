@@ -51,7 +51,7 @@ def read_oe(fn):
 	h=open(fn)
 	for line in h:
 		line=line.strip().split()
-		print >> sys.stderr, "CHR25 is enabled!"
+		#print >> sys.stderr, "CHR25 is enabled!"
 		#if line[0][:5]=="chr25":
 		#	continue
 		f=line[0]

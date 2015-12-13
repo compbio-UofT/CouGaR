@@ -404,13 +404,13 @@ def decompose(oe,lines,loops):
 			#loop=canonical_loop(stack[idx:])
 			new_loops=loop_to_loops(stack[idx:])
 			for loop in new_loops:
-				print print_seq(loop),
+				#print print_seq(loop),
 				d=None
 				if is_primary(loop[0]):
-					print "LINE"
+					#print "LINE"
 					d=lines
 				else:
-					print "LOOP"
+					#print "LOOP"
 					d=loops
 				if loop not in d:
 					d[loop]=0

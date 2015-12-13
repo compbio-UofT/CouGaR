@@ -450,12 +450,14 @@ void read_cov(char * filename, bool normal) {
 	
 	//find the size of one entry
 	size_t soe = sizeof(unsigned short)+sizeof(unsigned int)+sizeof(unsigned short);
-	size_t chunk = 30737418240L;
-	//size_t chunk = 64*1024*1024;
+	//size_t chunk = 30737418240L;
+	//size_t chunk = 3073741824;
+	//size_t chunk = 1024*1024L;
+	size_t chunk = 512*1024*1024;
 	size_t size_so_far = 0;
 	char * buffer = (char*) malloc(chunk);
 	if (buffer==NULL) {
-		cerr << "HMM: FALLED TO MALLOC " << endl;
+		cerr << "HMM: FAILED TO MALLOC " << endl;
 		exit(1);
 	}
 	
@@ -475,19 +477,21 @@ void read_cov(char * filename, bool normal) {
 	//the real read loop
 	while (!gzeof(fptr)) {
 		//size_t read = fread(buffer+size_so_far,1,chunk,fptr);
-		size_t read = gzread(fptr, buffer+size_so_far,chunk); 
+		long  read = gzread(fptr, buffer+size_so_far,chunk); 
+		if (read<0) {
+			int errnum=0;
+			cerr << gzerror(fptr, &errnum) << endl;
+		}
 		size_so_far+=read;
-		cerr << "HMM: Read so far " << size_so_far << endl;
+		//cerr << "HMM: Read so far " << size_so_far << " " << read <<  endl;
 
-		if (read==chunk) {
-			cerr << "HMM: REALLOC" << endl;
-			exit(1);
+			//cerr << "HMM: REALLOC" << endl;
+			//exit(1);
 			buffer=(char*)realloc(buffer,size_so_far+chunk);
 			if (buffer==NULL) {
 				cerr << "HMM: FALLED TO REALLOC " << endl;
 				exit(1);
 			}
-		}
 	}
 	
 	//lets get a buffer to fit the file	
@@ -563,7 +567,7 @@ void read_cov(char * filename, bool normal) {
 		//if this is an edge , same chromosome then add the coverage
 		if (prev.chr==chr) {
 			unsigned int cov_int = 0;
-			while (cov_e->chr==prev.chr && cov_e->pos<=it->coord && i<my_entries) {
+			while (i<my_entries && cov_e->chr==prev.chr && cov_e->pos<=it->coord) {
 				//if (thread_id==2) 
 				//cerr << "adding " << cov_e->chr << " " << cov_e->pos << " to " << prev.chr << " " << prev.coord << " - " << it->chr << " " << it->coord << " " << cov_int << " " << cov_e->cov << endl; 
 				cov_int += cov_e->cov;
@@ -803,7 +807,7 @@ int main(int argc, char ** argv) {
 	pos p = pos(0,0); 
 	for (set<pos>::iterator it=bps.begin(); it!=bps.end(); it++) {
 		pos c = *it;
-		//cout << "C:" << c.str() << endl; 
+		//cerr << "C:" << c.str() << endl; 
 		if (c.chr==p.chr) {
 			edge e = edge(p,c);
 			//cout << p.str() << "\t" << c.str() << endl; 
@@ -819,22 +823,6 @@ int main(int argc, char ** argv) {
 			//cout << normal_coverage << endl;		
 
 
-	
-			double emission[STATES];
-			#pragma omp parallel for
-			for (int i=0; i<STATES; i++) {
-				if (normal_coverage>=30) {
-					if (i==0) {
-						emission[i]=-(((double)normal_coverage)*0.5)+cancer_coverage*log((((double)normal_coverage)*0.5));
-					} else {
-						emission[i]=-((double)normal_coverage*i)+cancer_coverage*log((normal_coverage*i));
-					}
-				} else {
-					//TODO really should change this to just uniform...
-					emission[i]=0;
-				}
-			}
-
 			//if there is a free edge check if it lowers the copy count of increases
 			set<pos> fs = re_free_edges(c);
 			bool can_drop=false;	
@@ -848,9 +836,21 @@ int main(int argc, char ** argv) {
 					can_drop=true;
 				}
 			}
+	
+			double emission[STATES];
 			double transistion[STATES*STATES];
-			#pragma omp parallel for
+			//#pragma omp parallel for
 			for (int i=0; i<STATES; i++) {
+				if (normal_coverage>=30) {
+					if (i==0) {
+						emission[i]=-(((double)normal_coverage)*0.5)+cancer_coverage*log((((double)normal_coverage)*0.5));
+					} else {
+						emission[i]=-((double)normal_coverage*i)+cancer_coverage*log((normal_coverage*i));
+					}
+				} else {
+					//TODO really should change this to just uniform...
+					emission[i]=0;
+				}
 				double p=0;
 				if (!can_rise && !can_drop) {
 					double x = 0.999;
@@ -885,13 +885,13 @@ int main(int argc, char ** argv) {
 				back_t[i]=0;
 			}
 
-			#pragma omp parallel for
+			//#pragma omp parallel for
 			for (int i=0; i<STATES; i++) {
 				for (int j=0; j<STATES; j++) {
 					double  z = transistion[STATES*j+i]+states[(s-1)*STATES+j]+emission[i];
 					if (z>states[s*STATES+i]) {
 						states[s*STATES+i]=z;
-						#pragma omp critical 
+						//#pragma omp critical 
 						{
 						back_t[i]=j;
 						}
@@ -920,7 +920,7 @@ int main(int argc, char ** argv) {
 			}*/
 			s++;
 		} else if (p.chr!=0) {
-			cout << "HMM C:" << c.str() << endl; 
+			cerr << "HMM C:" << c.str() << endl; 
 			//lets drop the states
 			map<int, int> viterbi;
 			int max=0; 

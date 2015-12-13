@@ -13,6 +13,12 @@ int lengths[26];
 long reads_per_chr[26];
 char ** fsta;
 
+typedef struct __attribute__((__packed__)) struct_cov {
+        unsigned short chr;
+        unsigned int pos;
+        unsigned short cov;
+} struct_cov;
+
 unsigned short get_chr(const char * s) {
 	if (s[0]=='C' || s[0]=='c') {
 		s+=3;

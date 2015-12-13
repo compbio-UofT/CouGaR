@@ -269,7 +269,7 @@ edge_info::edge_info() {
 void edge_info::poisson() {
 		
 	if (normal==0 || tumor==0) {
-		cerr << normal << " " << tumor << "NORMAL OR TUMOR IS ZERO, is this ok?" << endl;
+		//cerr << normal << " " << tumor << "NORMAL OR TUMOR IS ZERO, is this ok?" << endl;
 	}
 
 
@@ -589,10 +589,10 @@ void read_links(char * filename) {
 
 		//get the normal support
 		if (bp_support.find(posa)==bp_support.end() ) {
-			cerr << "failed to find posa in bp_support " << endl;
+			//cerr << "failed to find posa in bp_support " << endl;
 		}
 		if (bp_support.find(posb)==bp_support.end() ) {
-			cerr << "failed to find posb in bp_support " << endl;
+			//cerr << "failed to find posb in bp_support " << endl;
 		}
 		int normal=(bp_support[posa]+bp_support[posb])/4; //the lambda , average of two sites (2 copies each)
 		int tumor=support;	
@@ -600,7 +600,7 @@ void read_links(char * filename) {
 		edge e = edge(posa,posb,false);
 		if (somatic_edges.find(e)!=somatic_edges.end() && somatic_edges[e].tumor>=ei.tumor) {
 			//skip this already have a better one
-			cerr << "SKipping edge " << buffer << endl;
+			//cerr << "SKipping edge " << buffer << endl;
 			continue;
 		}
 
