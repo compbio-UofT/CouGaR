@@ -18,20 +18,24 @@ function mwalker {
 	i=$1
 	sq=$2
 	m=$3
-	pushd $wd
+
+	mkdir -p ${wd}/solve/i${i}_sq${sq}_m${m}
+
+	pushd ${wd}/solve/i${i}_sq${sq}_m${m}
 	#sed out the chr25
-	sed -i 's/chr25/chrM/g' hmm
-	sed -i 's/chr25/chrM/g' nsub*
+	sed 's/chr25/chrM/g' ${wd}/hmm > hmm
+	for x in ${wd}/nsub* ; do 
+		sed 's/chr25/chrM/g' $x > `basename $x`
+	done
 
 	#remake the mqs	 - just in case they werent right from before?
-        #ref=`python $g/get_ref.py downloadable.xml | awk '{print $NF}' | head -n 1`
-	ref=`cat ref`
+	ref=`cat ${wd}/ref`
         $g/mapability/bigWigAverageOverBed $g/mapability/$ref/* nsubtract_centrosubtract_1000bp.bed nsubtract_centrosubtract_1000bp.bed.out
         cat nsubtract_centrosubtract_1000bp.bed.out | awk '{print $1,$NF}' > nsubtract_centrosubtract_1000bp_mqs 
 
 	$g/walker/walker_new nsubtract_centrosubtract_1000bp hmm N 0 ${m} 2 > walker_out_q${i}sq${sq}_m${m}
 	mv problem_file.gz problem_file_q${i}sq${sq}_m${m}.gz
-	zcat  problem_file_q${i}sq${sq}_m${m}.gz | /data/misko/2013.04.12/cs2-4.3/cs2.exe | gzip > solved_q${i}sq${sq}_m${m}.gz
+	zcat  problem_file_q${i}sq${sq}_m${m}.gz | $c | gzip > solved_q${i}sq${sq}_m${m}.gz
 	
 	##########################
 	## FLOW   PROBLEM   ######
@@ -83,26 +87,15 @@ function mwalker {
 	##########################
 	## STATS          ########
 	##########################
-	#ref=`python $g/get_ref.py  downloadable.xml  | awk '{print $NF}' | head -n 1`
-	ref=`cat ref`
-	#group=`$g/get_group.sh downloadable.xml`
-	group=`cat subset`
+	ref=`cat ${wd}/ref`
+	group=`cat ${wd}/subset`
 	echo $id $group > group
 	/usr/bin/pypy $g/walker/contigs_to_coords.py Qproblem_file_q${i}sq${sq}_m${m}.gz decompositions_q${i}sq${sq}_m${m}.loops.full ip_prob_q${i}sq${sq}_m${m}.lp.sol ${m} $g/genes/genes_wstrands_formatted_${ref}.txt $g/genes/oncos ${id} group > stats
 
 	popd 
 }
 
-#run overlaps
-#mwalker 4000 1000
-
-#mwalker 1350 300 3 # contigQ somatic_base_Q multiplier 
-
-#this was run with ip SQ = SQ / 2
-#mwalker 1350 290 3 # contigQ somatic_base_Q multiplier 
-
-#this was run with ip SQ = -20
-#mwalker 1350 291 3 # contigQ somatic_base_Q multiplier 
 
 #this was run with ip SQ = 20
-mwalker 1350 292 3 # contigQ somatic_base_Q multiplier 
+#mwalker 1350 292 3 # contigQ somatic_base_Q multiplier 
+mwalker 1350 300 3 # contigQ somatic_base_Q multiplier 
