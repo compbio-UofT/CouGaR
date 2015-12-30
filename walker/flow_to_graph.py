@@ -142,7 +142,7 @@ def read_flow_file(filename):
 			fl=int(line[3])
 			flows.append((f,t,fl))					
 	h.close()
-	print "# " + filename 
+	print "; " + filename 
 	used=annotate_flow(flows)
 	
 	used_breakpoints=set()

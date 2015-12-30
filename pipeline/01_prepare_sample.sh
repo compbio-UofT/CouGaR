@@ -52,7 +52,7 @@ pushd $wd
 	echo Indexing tumor BAM
 	$s index tumor.bam
 	echo Creating coverage file for tumor BAM
-	$s mpileup -q ${cov_mapq} tumor.bam 2>/dev/null | $g/getcov/get_cov tumor_cov 
+	$s mpileup -q ${cov_mapq} tumor.bam 2>/dev/null | $g/getcov/get_orig_cov tumor_orig_cov 
 	echo Background cluster generation for tumor BAM
 	sh $g/clustering/make_clusters.sh tumor.bam 0 &
 

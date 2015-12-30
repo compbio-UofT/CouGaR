@@ -113,7 +113,9 @@ long * read_cov(char * filename, bool normal, int bins) {
 	while (!gzeof(fptr)) {
 		size_t read = gzread(fptr,buffer+size_so_far,chunk);
 		size_so_far+=read;
+#ifdef DEBUG
 		cerr << "Read so far " << size_so_far << endl;
+#endif 
 		if (read==chunk) {
 			//cerr << "REALLOC" << endl;
 			buffer=(char*)realloc(buffer,size_so_far+chunk);
@@ -189,38 +191,31 @@ long * read_cov(char * filename, bool normal, int bins) {
 			cerr <<  "EMERGENCY STOP" << endl;
 			exit(1);
 		}
+#ifdef DEBUG
 		if (i%10000000==tidx) {
 			cerr << tidx << " of " << omp_get_num_threads() << " : " << i << " / " << entries << endl;
 		}
+#endif
 		if (omp_get_num_threads()!=threads) {
 			cerr << "FAIL BAD" << endl;
 			exit(1);
 		}
-		char* base = buffer+i*soe;
-		unsigned short chr=(*((unsigned short *)base));
-		if (chr==0) {
-			t_skips++;
-			continue;
+		struct_cov * cov = (struct_cov*)(buffer+i*sizeof(struct_cov));
+		if (cov->chr<26) {
+			t_reads_per_chr[tidx*26+ cov->chr-1]+=cov->cov;
 		}
-		base+=sizeof(unsigned short);
-		unsigned int coord=*((unsigned int *)base);
-		base+=sizeof(unsigned int);
-		unsigned short cov=*((unsigned short *)base);
-		if (chr<26) {
-			t_reads_per_chr[tidx*26+ chr-1]+=cov;
+		if (cov->chr>25) {
+			cerr << "WHAT CHR" << cov->chr << endl;
 		}
-		if (chr>25) {
-			cerr << "WHAT CHR" << chr << endl;
-		}
-		int current_gc=gc(chr,coord,300);
+		int current_gc=gc(cov->chr,cov->pos,300);
 		
 		if (current_gc<0) {
 			t_skips[tidx]++;
 		} else {
-			t_gcbins[tidx*bins + current_gc]+=cov;
+			t_gcbins[tidx*bins + current_gc]+=cov->cov;
 		}
 
-		t_coverage[tidx]+=cov;
+		t_coverage[tidx]+=cov->cov;
 		//total_coverage+=cov;
 	}
 
@@ -404,7 +399,7 @@ char ** read_fasta(char * filename) {
 	}
 	cout << "Finished reference processing" << endl;
 	for (int i=0; i<24; i++) {
-		cerr << "chr"<< i+1 << lengths[i] << endl;
+		cerr << "chr "<< i+1 << lengths[i] << endl;
 	}
 	return fsta;	
 }

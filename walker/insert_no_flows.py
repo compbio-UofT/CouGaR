@@ -16,15 +16,15 @@ genomic=[]
 
 #read in the g_lp
 h=open(g_lp_fn)
-line=h.readline()
+line=h.readline().replace(';','#')
 title="#"
 print >> sys.stderr, "READING" , g_lp_fn
 while line[0]=='#':
-	title=line.strip()
+	title=line.strip().replace(';','#')
 	line=h.readline()
-genomic=eval(line.strip().replace(' ',','))
+genomic=eval(line.strip().replace(' ',',').replace(';','#'))
 line=h.readline()
-somatic=eval(line.strip().replace(' ',','))
+somatic=eval(line.strip().replace(' ',',').replace(';','#'))
 
 def score(l):
 	su=0
@@ -116,7 +116,7 @@ genomic.sort()
 gsup,gstp=score(genomic)
 print >> sys.stderr, float(gsu)/(gst+0.01), float(gsup)/(gstp+0.01)
 
-print title + " with HMM edges mincp" , min_cp, "minlen", min_len
+print ';' + title + " with HMM edges mincp" , min_cp, "minlen", min_len
 print str(genomic).replace(',','')
 print str(somatic).replace(',','')
 		

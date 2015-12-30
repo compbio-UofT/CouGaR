@@ -397,7 +397,7 @@ void read_edges(char * filename) {
 	fclose(fptr);
 
 	double normal_average_coverage = normal_coverage/len;
-	cout << "# average normal coverage is " << normal_average_coverage << endl;
+	cerr << "# average normal coverage is " << normal_average_coverage << endl;
 
 
 	fptr = fopen(filename,"r");
@@ -443,7 +443,7 @@ void read_edges(char * filename) {
 		bool pass=false;
 		double average_coverage = ((double)normal)/length;
 		if (ichra==ichrb && ichra!=25 && average_coverage>10*normal_average_coverage) {
-			cout << "# Dropping region because cov " << average_coverage << " on " << chra << posa << " " << chrb << posb << " len " <<  length << " , normal avg cov is " << normal_average_coverage << endl;
+			cerr << "# Dropping region because cov " << average_coverage << " on " << chra << posa << " " << chrb << posb << " len " <<  length << " , normal avg cov is " << normal_average_coverage << endl;
 			normal=0;
 			tumor=0;
 			bool pass=true;
@@ -843,7 +843,7 @@ void add_flow_to_edge(pos posa,pos posb) {
 	
 	if (somatic_cost>10e99 && genomic_cost>10e99) {
 		//cerr << "SOMTHIGN BAD" << endl;	
-		cout << "OVERFLOW!\t" << posa.str() << "\t" << posb.str() << "\t" << (has_genomic ? genomic_edges[ge].flow : -1 ) << "\t" << (has_somatic ? somatic_edges[se].flow : -1 ) << endl;
+		cerr << "OVERFLOW!\t" << posa.str() << "\t" << posb.str() << "\t" << (has_genomic ? genomic_edges[ge].flow : -1 ) << "\t" << (has_somatic ? somatic_edges[se].flow : -1 ) << endl;
 		
 		//exit(1);
 	} else {
@@ -859,7 +859,7 @@ void add_flow_to_edge(pos posa,pos posb) {
 }
 
 void flow_solve() {
-	cout << "Running flow with ? contigs" << endl;
+	cerr << "Running flow with ? contigs" << endl;
 	//output the graph!
 	stringstream ss;
 	int num_nodes=0;
@@ -1011,6 +1011,12 @@ void flow_solve() {
 	}
 	
 
+
+	cout << "c Here goes nothing ... " << endl;
+	cout << "p\tmin\t" << num_nodes << "\t" << arcs << endl;
+	cout << ss.str() << endl;
+
+	/*
 	//open the problem file
 	gzFile gzout = gzopen("./problem_file.gz", "wb");
 	char *b;
@@ -1023,6 +1029,7 @@ void flow_solve() {
 	sprintf(b,"c Here goes nothing ... \np\tmin\t%d\t%d\n%s" , num_nodes,arcs, ss.str().c_str());
 	gzwrite(gzout,b,strlen(b)); 
 	gzclose(gzout);
+	*/
 	//ofstream fs ("./problem_file");
 	//fs << "c Here goes nothing ... " << endl;
 	//fs << "p\tmin\t" << num_nodes << "\t" << arcs << endl;
@@ -1030,17 +1037,16 @@ void flow_solve() {
 	//fs.close();
 
 	//run cs2.exe on it
+	/*
 	FILE *fp;
 	int status;
 	
-	/* Open the command for reading. */
 	fp = popen("zcat ./problem_file.gz | grep -v \"^c\" | /data/misko/2013.04.12/cs2-4.3/cs2.exe", "r");
 	if (fp == NULL) {
 		printf("Failed to run cs2.exe command\n" );
 		exit(1);
 	}
 
-	/* Read the output a line at a time - output it. */
 	char buffer[1035];
 	while (fgets(buffer, sizeof(buffer)-1, fp) != NULL) {
 		//printf("SOLUTION %s", buffer);
@@ -1102,8 +1108,7 @@ void flow_solve() {
 	cout << "SOMATIC" << endl;
 	cout << edges_summary(somatic_edges);
 
-	/* close */
-	pclose(fp);
+	pclose(fp);*/
 
 }
 
@@ -1115,36 +1120,36 @@ int main ( int argc, char ** argv) {
 
 	
 	//output the command line
-	cout << "#CMD-LINE: " ;
+	cerr << "#CMD-LINE: " ;
 	for (int i=0; i<argc-1; i++) {
-		cout << argv[i] << " ";
+		cerr << argv[i] << " ";
 	}
-	cout << argv[argc-1] << endl;
+	cerr << argv[argc-1] << endl;
 
 	bool only_largest=false;	
 	if (argv[3][0]=='Y' || argv[3][0]=='y') {
-		cout << "# only largest component" << endl;
+		cerr << "# only largest component" << endl;
 		only_largest=true;
 	} else {
-		cout << "# all components" << endl; 
+		cerr << "# all components" << endl; 
 		only_largest=false;
 	}
 
 	min_copies=atoi(argv[4]);
 	if (min_copies<0 || min_copies>1000) {
-		cout << "ERROR in min copies (range 0-1000) " << endl;
+		cerr << "ERROR in min copies (range 0-1000) " << endl;
 		exit(1);
 	}
 
 	multiplier=atoi(argv[5]);
 	if (multiplier<1 || multiplier>1000) {
-		cout << "ERROR in multiplier (range 1-1000) " << endl;
+		cerr << "ERROR in multiplier (range 1-1000) " << endl;
 		exit(1);
 	}
 
 	min_hmm_cp=atoi(argv[6]);
 	if (min_hmm_cp<0 || min_hmm_cp>2000) {
-		cout << "ERROR in min_hmm_cp (range 0,2000) \n";
+		cerr << "ERROR in min_hmm_cp (range 0,2000) \n";
 		exit(1);
 	}
 
@@ -1156,7 +1161,7 @@ int main ( int argc, char ** argv) {
 	read_edges(edges_filename);
 	//read_bp_coverages(bp_coverages_filename);
 	read_links(links_filename);
-	fprintf(stdout, "# DONE READ IN!\n");
+	fprintf(stderr, "# DONE READ IN!\n");
 	/*map<pos,int> connected_components = find_connected_components();
 	map<int, int> connected_components_sizes;
 	int size_3_or_more=0;

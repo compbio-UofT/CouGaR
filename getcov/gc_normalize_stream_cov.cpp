@@ -194,7 +194,7 @@ void free_stats(struct_stats *ss) {
 }
 
 struct_stats *  find_stats(char * buffer, unsigned int entries) {
-	cerr << "Starting to find stats" << endl;
+	//cerr << "Starting to find stats" << endl;
 	struct_stats * ss = new_stats();
 
 	//thread local storage
@@ -356,7 +356,7 @@ struct_stats *  find_stats(char * buffer, unsigned int entries) {
 	free(t_gcbins);
 	free(t_median_counts);
 	free(t_coverage);
-	cerr << "Done find stats" << endl;
+	//cerr << "Done find stats" << endl;
 	return ss;
 }
 
@@ -379,6 +379,225 @@ void print_stats(struct_stats * ss ) {
 	cout << "Mean\t" <<  ss->mean << "\tStd\t" << ss->stddev << endl;
 	cout << "Mean Bar\t" <<  ss->mean_bar << "\tStd_bar\t" << ss->stddev_bar << endl;
 	cout << "Median\t" << ss->median << endl;
+}
+
+
+struct_stats * stream_read_cov(char * filename, int bins, bool correct, struct_stats * normal_stats, struct_stats * tumor_stats, char * output_filename, bool tumor_b) {
+	//cerr << "Starting to find stats" << endl;
+	struct_stats * ss = new_stats();
+
+	//thread local storage
+	long * t_reads_per_chr = (long*)malloc(threads*sizeof(long)*26);
+	if (t_reads_per_chr==NULL) {
+		cerr << "whoops" << endl;
+		exit(1);
+	}
+	memset(t_reads_per_chr, 0, sizeof(long)*threads*26);
+
+	long * t_skips=(long*)malloc(threads*sizeof(long));
+	if (t_skips==NULL) {
+		cerr << "someting bad" << endl;
+		exit(1);
+	}
+	memset(t_skips,0,sizeof(long)*threads);
+
+	long * t_gcbins = (long*)malloc(threads*sizeof(long)*bins);
+	if (t_gcbins==NULL) {
+		cerr << "something bad" << endl;	
+		exit(1);
+	}
+	memset(t_gcbins,0,sizeof(long)*threads*bins);
+
+	int * t_median_counts = (int*)malloc(threads*sizeof(int)*MAX_MEDIAN);
+	if (t_median_counts==NULL) {
+		cerr << "FAILED TO GET COUNTS FOR MEDIAN" << endl;
+		exit(1);
+	}
+	memset(t_median_counts,0,sizeof(int)*MAX_MEDIAN*threads);
+
+	//setup threading counts for total coverage
+	long * t_coverage = (long*)malloc(threads*sizeof(long)*bins);
+	if (t_coverage==NULL) {
+		cerr << "broke" << endl;
+		exit(1);
+	}
+	memset(t_coverage,0,sizeof(long)*threads*bins);
+
+
+
+	//cerr << "Reading coverage from file " << filename << endl;
+
+	gzFile fptr = gzopen(filename,"r");
+	if (fptr==NULL) {
+		fprintf(stderr, "Failed to open file %s\n",filename);
+		exit(1);
+	}
+	
+	//find the size of one entry
+	//size_t chunk = 30737418240L;
+	size_t chunk = 512*1024*1024L;
+	char * buffer = (char*) malloc(chunk);
+	if (buffer==NULL) {
+		cerr << " FALLED TO MALLOC " << endl;
+		exit(1);
+	}
+
+	double median_ratio = 1.0;
+	if (correct) {
+		if (tumor_b) {
+			median_ratio = normal_stats->mean/tumor_stats->mean;	
+		} else {
+			median_ratio = tumor_stats->mean/normal_stats->mean;	
+		}
+		if (median_ratio>1.0) {
+			median_ratio=1.0;
+		}
+	}
+	srand(time(NULL));
+
+
+
+	gzFile *fi = NULL;
+	if (output_filename!=NULL) {
+		fi = (gzFile *)gzopen(output_filename,"wb");
+		if (fi==NULL) {
+			cerr<<"something terrible";
+			exit(1);
+		}
+	}
+
+
+
+	//the real read loop
+	unsigned long total_entries  = 0;
+	while (!gzeof(fptr)) {
+		size_t read = gzread(fptr,buffer,chunk);
+		if (read%sizeof(struct_cov)!=0) {
+			cerr << "FAILED TO READ FILE PROPERLY..." << endl;
+			exit(1);
+		}
+		unsigned long entries = read/sizeof(struct_cov);
+		total_entries+=entries;
+		#pragma omp parallel for 
+		for (unsigned int i=0; i<entries; i++) {
+			int tidx=omp_get_thread_num();
+			struct_cov * cov = (struct_cov*) (buffer+i*sizeof(struct_cov));
+
+			if (cov->chr<26) {
+				t_reads_per_chr[tidx*26+ cov->chr-1]+=cov->cov;
+			}
+			if (cov->chr>25) {
+				cerr << "WHAT CHR" << cov->chr << endl;
+			}
+	
+			if (correct) {	
+				//int current_gc=gc(cov->chr,cov->pos,300);
+				int current_gc = gcs[cov->chr-1][cov->pos];
+				assert( current_gc>=-1);	
+				if (current_gc>=0) {
+					double gc_ratio = 1.0;
+					if (tumor_b) {
+						double gc_normal = ((double)normal_stats->gcbins[current_gc])/normal_stats->total_reads;
+						double gc_tumor = ((double)tumor_stats->gcbins[current_gc])/tumor_stats->total_reads;
+						gc_ratio = gc_normal/((1-gc_normal)*gc_tumor);
+					} else {
+						double gc_normal = ((double)normal_stats->gcbins[current_gc])/normal_stats->total_reads;
+						double gc_tumor = ((double)tumor_stats->gcbins[current_gc])/tumor_stats->total_reads;
+						gc_ratio = gc_tumor/((1-gc_tumor)*gc_normal);
+					}
+					if (gc_ratio>1) {
+						gc_ratio=1.0;
+					}
+					//cerr << cov->cov << " " << gc_ratio << " " << median_ratio << " " << cov->cov*gc_ratio*median_ratio << endl;
+					double new_cov = cov->cov*gc_ratio*median_ratio;
+					//double X=((double)rand()/(double)RAND_MAX);
+					//if (X<(new_cov - (int)new_cov) ) {
+					//	new_cov++;
+					//}
+					cov->cov=(int)new_cov; // correct for GC BIN and coverage
+
+				}
+			}
+		
+			//find median stats
+			int median_cov = MIN(MAX_MEDIAN-1,cov->cov);
+			t_median_counts[tidx*MAX_MEDIAN+median_cov]++;
+
+			//find the current gcbin
+			int current_gc = gcs[cov->chr-1][cov->pos];
+			assert(current_gc<=bins && current_gc>=-1);	
+			
+			if (current_gc<0) {
+				t_skips[tidx]++;
+			} else {
+				t_gcbins[tidx*bins + current_gc]+=cov->cov;
+			}
+
+			t_coverage[tidx]+=cov->cov;
+		}
+
+		//write out? 
+		if (output_filename!=NULL) {
+			gzwrite(fi,buffer,read);
+		}
+	}
+	
+	//merge the results
+	for (int i=0; i<threads; i++){ 
+		ss->total_reads+=t_coverage[i];
+		ss->skips+=t_skips[i];
+		if (i>0) {
+			for (int j=0; j<MAX_MEDIAN; j++) {
+				t_median_counts[j]+=t_median_counts[i*MAX_MEDIAN+j];
+			}
+		} else {
+			//cerr << genome_length << " " << total_entries << endl;
+			if (total_entries<genome_length) {
+				t_median_counts[0]=genome_length - total_entries;
+			}
+		}
+		for (int j=0; j<bins; j++) {
+			ss->gcbins[j]+=t_gcbins[i*bins+j];
+		}
+		for (int j=0; j<26; j++) {
+			ss->reads_per_chr[j]+=t_reads_per_chr[i*26+j];
+		}
+	}
+
+	//mean
+	//ss->mean=((double)ss->total_reads)/entries;
+	ss->mean=((double)ss->total_reads)/genome_length; //correct for full genome length
+
+	//median
+	int max_median_idx = 0;
+	unsigned long reads_so_far=0;
+	for (int j=0; j<MAX_MEDIAN; j++) {
+		if (j<30) {
+			cerr << "BIN DIST X " << j << " " << t_median_counts[j] << endl;
+		}
+		reads_so_far+=t_median_counts[j];
+		if ( (total_entries/2)<reads_so_far ) {
+			ss->median=j;
+			break;
+		}
+	}
+
+	//lets get a buffer to fit the file	
+	//cout << "Done reading file  " << size_so_far <<  endl;
+
+	free(t_reads_per_chr);
+	free(t_skips);
+	free(t_gcbins);
+	free(t_median_counts);
+	free(t_coverage);
+
+	free(buffer);
+
+	if (output_filename!=NULL) {
+		gzclose(fi);	
+	}
+
+	return ss;
 }
 
 struct_stats * read_cov(char * filename, int bins, char ** ret_buffer, unsigned int * ret_entries, int * median) {
@@ -586,7 +805,9 @@ char ** read_fasta(char * filename, int gc_size) {
 					break;
 				default:
 					cerr << "unexpected got char " << c << endl;
-					exit(1);
+					ns++;
+					break;
+					//exit(1);
 			}
 			int ridx = j-gc_size;
 			if (ridx>=0) {
@@ -605,7 +826,9 @@ char ** read_fasta(char * filename, int gc_size) {
 						break;
 					default:
 						cerr << "unexpected got char " << c << endl;
-						exit(1);
+						ns++;
+						break;
+						//exit(1);
 				}
 			}
 			if (j<gc_size) {
@@ -623,8 +846,12 @@ char ** read_fasta(char * filename, int gc_size) {
 		for (int idx=lengths[i]-gc_size/2; idx<lengths[i]; idx++) {
 			gcs[i][idx]=-1;
 		}
+		free(fsta[i]);
 	}
-	return fsta;	
+	free(buffer);
+	free(ref);
+	free(fsta);
+	return NULL;	
 }
 
 
@@ -659,6 +886,7 @@ int main (int argc, char ** argv) {
 		return 0;
 	}
 
+	omp_set_nested(1); 
 	int threads=32;
 	omp_set_num_threads(threads); //omp_get_num_threads();
 	assert(sizeof(unsigned short)+sizeof(unsigned int)+sizeof(unsigned short)==sizeof(struct_cov));
@@ -683,9 +911,9 @@ int main (int argc, char ** argv) {
 	{
 		int tidx=omp_get_thread_num();
 		if (tidx==0) {
-			normal_stats = read_cov(normal_coverage_filename,bins, &normal_buffer, &normal_entries, &normal_median);
+			normal_stats = stream_read_cov(normal_coverage_filename,bins, false, NULL, NULL, NULL, false);
 		} else if (tidx==1) {
-			tumor_stats = read_cov(tumor_coverage_filename,bins, &tumor_buffer, &tumor_entries, &tumor_median);
+			tumor_stats = stream_read_cov(tumor_coverage_filename,bins, false, NULL, NULL, NULL, true);
 		} else {
 			cerr << " THREADING ERROR " << endl;
 		}
@@ -697,13 +925,15 @@ int main (int argc, char ** argv) {
 	{
 		int tidx=omp_get_thread_num();
 		if (tidx==0) {
-			correct_coverage(normal_buffer, normal_entries, false, normal_stats, tumor_stats) ;
-			normal_stats = read_cov(NULL,bins, &normal_buffer, &normal_entries, &normal_median);
-			write_file(output_normal_filename,normal_buffer, normal_entries);
+			//correct_coverage(normal_buffer, normal_entries, false, normal_stats, tumor_stats) ;
+			//normal_stats = read_cov(NULL,bins, &normal_buffer, &normal_entries, &normal_median);
+			//write_file(output_normal_filename,normal_buffer, normal_entries);
+			normal_stats = stream_read_cov(normal_coverage_filename,bins, true,  normal_stats, tumor_stats, output_normal_filename, false);
 		} else if (tidx==1) {
-			correct_coverage(tumor_buffer, tumor_entries, true, normal_stats, tumor_stats) ;
-			tumor_stats = read_cov(NULL,bins, &tumor_buffer, &tumor_entries, &tumor_median);
-			write_file(output_tumor_filename,tumor_buffer, tumor_entries);
+			//correct_coverage(tumor_buffer, tumor_entries, true, normal_stats, tumor_stats) ;
+			//tumor_stats = read_cov(NULL,bins, &tumor_buffer, &tumor_entries, &tumor_median);
+			//write_file(output_tumor_filename,tumor_buffer, tumor_entries);
+			tumor_stats = stream_read_cov(tumor_coverage_filename,bins, true,  normal_stats, tumor_stats, output_tumor_filename, true);
 		} else {
 			cerr << " THREADING ERROR " << endl;
 		}

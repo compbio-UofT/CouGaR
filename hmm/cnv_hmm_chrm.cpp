@@ -29,13 +29,15 @@
 #define ZERO 1e-6
 
 
-#define MAX_EDGE_SIZE 2400
+//#define MAX_EDGE_SIZE 2400
 //#define MAX_EDGE_SIZE 24000
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
 using namespace std;
 
+
+unsigned int max_edge_size ;
 double tao = 0.0; //contamination
 
 double abs(double a) {
@@ -352,7 +354,8 @@ void read_links(char * filename, char * ref ) {
 		exit(1);
 	}
 	for (int i=0; i<25; i++) {
-		pos p = pos(i+1,MAX_EDGE_SIZE+1);
+		//pos p = pos(i+1,MAX_EDGE_SIZE+1);
+		pos p = pos(i+1,max_edge_size+1);
 		bps.insert(p);
 		p = pos(i+1,lengths[i]);
 		bps.insert(p);
@@ -383,7 +386,8 @@ void read_links(char * filename, char * ref ) {
 		pos posa=pos(nchra,bpa);
 		pos posb=pos(nchrb,bpb);
 
-		if (bpa<MAX_EDGE_SIZE || bpb<MAX_EDGE_SIZE) {
+		//if (bpa<MAX_EDGE_SIZE || bpb<MAX_EDGE_SIZE) {
+		if (bpa<max_edge_size || bpb<max_edge_size) {
 			cerr << "HMM: SKIPPING LINK" << endl;
 			continue;
 		}
@@ -632,8 +636,8 @@ void read_cov(char * filename, bool normal) {
 
 int main(int argc, char ** argv) {
 	//need to load in files
-	if (argc!=6) {
-		printf("%s links cov_cancer cov_normal contam(0-0.9) hg18/hg19\n", argv[0]);
+	if (argc!=7) {
+		printf("%s links cov_cancer cov_normal contam(0-0.9) hg18/hg19 max_edge_size\n", argv[0]);
 		exit(1);
 	}
 
@@ -651,7 +655,8 @@ int main(int argc, char ** argv) {
 	if (strcmp(ref,"hg18")!=0 and strcmp(ref,"hg19")!=0) {
 		cerr << "please use hg18 or hg19 for ref" << endl;
 		exit(1);
-	}	
+	}
+	max_edge_size = atoi(argv[6])	;
 
 	cout << "#" << MAX_FLOW << "\t" << links_filename << "\t" << cov_cancer_filename << "\t" << cov_normal_filename << endl;
 
@@ -684,10 +689,12 @@ int main(int argc, char ** argv) {
 				cerr << "TOO CLOSE!" << current.str() << endl;
 				exit(1);
 			}*/
-			to_add.insert(pos(current.chr,MAX(MAX_EDGE_SIZE,current.coord)-MAX_EDGE_SIZE));
+			//to_add.insert(pos(current.chr,MAX(MAX_EDGE_SIZE,current.coord)-MAX_EDGE_SIZE));
+			to_add.insert(pos(current.chr,MAX(max_edge_size,current.coord)-max_edge_size));
 			last_chr=current.chr;	
 			if (xprevious.chr!=0) {
-				to_add.insert(pos(xprevious.chr,xprevious.coord+MAX_EDGE_SIZE));
+				//to_add.insert(pos(xprevious.chr,xprevious.coord+MAX_EDGE_SIZE));
+				to_add.insert(pos(xprevious.chr,xprevious.coord+max_edge_size));
 			}
 		}
 		/*i++;
@@ -700,9 +707,11 @@ int main(int argc, char ** argv) {
 		if (it==bps.end()) {
 			break;
 		}
-		if (current.chr==next.chr && next.coord-current.coord>MAX_EDGE_SIZE) {
+		//if (current.chr==next.chr && next.coord-current.coord>MAX_EDGE_SIZE) {
+		if (current.chr==next.chr && next.coord-current.coord>max_edge_size) {
 			int d = next.coord-current.coord;
-			int e = d/(d%MAX_EDGE_SIZE==0 ? d/MAX_EDGE_SIZE : (d/MAX_EDGE_SIZE+1)); // d / (num requried edges )
+			//int e = d/(d%MAX_EDGE_SIZE==0 ? d/MAX_EDGE_SIZE : (d/MAX_EDGE_SIZE+1)); // d / (num requried edges )
+			int e = d/(d%max_edge_size==0 ? d/max_edge_size : (d/max_edge_size+1)); // d / (num requried edges )
 			int k = e;
 			if (d%e!=0) {
 				d--;
@@ -723,7 +732,8 @@ int main(int argc, char ** argv) {
 		xprevious=current;
 	}
 	if (xprevious.chr!=0) {
-		to_add.insert(pos(xprevious.chr,xprevious.coord+MAX_EDGE_SIZE));
+		//to_add.insert(pos(xprevious.chr,xprevious.coord+MAX_EDGE_SIZE));
+		to_add.insert(pos(xprevious.chr,xprevious.coord+max_edge_size));
 	}
 	for (set<pos>::iterator it=to_add.begin(); it!=to_add.end(); it++) {
 		if ( (*it).chr>26 ) {
@@ -812,7 +822,11 @@ int main(int argc, char ** argv) {
 			edge e = edge(p,c);
 			//cout << p.str() << "\t" << c.str() << endl; 
 			edge_info ei = re_edges(e);
+#ifdef NORMALIZED
+			unsigned long cancer_coverage = total_cancer_coverage*ei.cancer_coverage/100;
+#else
 			unsigned long cancer_coverage = total_normal_coverage*ei.cancer_coverage/100;
+#endif
 			if (cancer_coverage==0) {
 				cancer_coverage++;
 			}
@@ -840,7 +854,8 @@ int main(int argc, char ** argv) {
 			double emission[STATES];
 			double transistion[STATES*STATES];
 			//#pragma omp parallel for
-			for (int i=0; i<STATES; i++) {
+			for (int i=0; i<STATES; i++) {	
+				// testing across various poisson distributions for most appropriate mean
 				if (normal_coverage>=30) {
 					if (i==0) {
 						emission[i]=-(((double)normal_coverage)*0.5)+cancer_coverage*log((((double)normal_coverage)*0.5));
@@ -1008,7 +1023,11 @@ int main(int argc, char ** argv) {
 				//initialize
 				e=edge(e.posa,current);
 				edge_info ei = re_edges(e);
+#ifdef NORMALIZED
+				cancer=total_cancer_coverage*ei.cancer_coverage/100;
+#else
 				cancer=total_normal_coverage*ei.cancer_coverage/100;
+#endif
 				normal=(total_normal_coverage*ei.normal_coverage/100)/2;
 				cp=re_edges(e).copy_number;
 				if (re_free_edges(current).size()!=0) {
@@ -1025,7 +1044,11 @@ int main(int argc, char ** argv) {
 					//add it
 					e.posb=current;
 					edge_info xei = re_edges(xe);
+#ifdef NORMALIZED
+					cancer+=total_cancer_coverage*xei.cancer_coverage/100;
+#else
 					cancer+=total_normal_coverage*xei.cancer_coverage/100;
+#endif
 					normal+=(total_normal_coverage*xei.normal_coverage/100)/2;
 					if (re_free_edges(current).size()!=0) {
 						cout << cp << "\t" << e.posa.str() << "\t" << e.posb.str() << "\t" << e.length() << "\t" << cancer << "\t" << normal << endl;
@@ -1038,7 +1061,11 @@ int main(int argc, char ** argv) {
 					cout << cp << "\t" << e.posa.str() << "\t" << e.posb.str() << "\t" << e.length() << "\t" << cancer << "\t" << normal << endl;
 					e=edge(e.posb,current);
 					edge_info ei = re_edges(e);
+#ifdef NORMALIZED
+					cancer=total_cancer_coverage*ei.cancer_coverage/100;
+#else
 					cancer=total_normal_coverage*ei.cancer_coverage/100;
+#endif
 					normal=(total_normal_coverage*ei.normal_coverage/100)/2;
 					cp=xcp;
 					if (re_free_edges(current).size()!=0) {
