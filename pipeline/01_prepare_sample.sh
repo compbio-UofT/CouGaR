@@ -10,7 +10,7 @@ if [ ! -d "$COUGARD" ] ; then echo "COUGARD enviornment variable is not set prop
 
 
 if [ $# -ne 5 ]; then
-	echo $0 "ID_folder_name tumor_bam normal_bam ref[hg18/hg19] group[anygrouplabel]"
+	echo $0 "folder_name tumor_bam normal_bam ref[hg18/hg19] group[anygrouplabel]"
 	exit
 fi
 
@@ -48,21 +48,29 @@ pushd $wd
 	echo $group > subset
 	bamfile=$tumor_bamfilename
 	echo Using $bamfile as tumor BAM ...
-	ln -s $bamfile tumor.bam
-	echo Indexing tumor BAM
-	$s index tumor.bam
+	if [ ! -e "tumor.bam" ] ; then 
+		ln -s $bamfile tumor.bam
+	fi
+	if [ ! -e "tumor.bam.bai" ] ; then
+		echo Indexing tumor BAM
+		$s index tumor.bam
+	fi
 	echo Creating coverage file for tumor BAM
-	$s mpileup -q ${cov_mapq} tumor.bam 2>/dev/null | $g/getcov/get_orig_cov tumor_orig_cov 
+	$s mpileup -q ${cov_mapq} tumor.bam 2>/dev/null | $g/getcov/get_cov tumor_orig_cov 
 	echo Background cluster generation for tumor BAM
 	sh $g/clustering/make_clusters.sh tumor.bam 0 &
 
 	bamfile=$normal_bamfilename
 	echo Using $bamfile as normal BAM ...
-	ln -s $bamfile normal.bam
-	echo Indexing normal BAM
-	$s index normal.bam
+	if [ ! -e "normal.bam" ] ; then 
+		ln -s $bamfile normal.bam
+	fi
+	if [ ! -e "normal.bam.bai" ] ; then 
+		echo Indexing normal BAM
+		$s index normal.bam
+	fi
 	echo Creating coverage file for normal BAM
-	$s mpileup -q ${cov_mapq} normal.bam 2>/dev/null | $g/getcov/get_cov normal_cov 
+	$s mpileup -q ${cov_mapq} normal.bam 2>/dev/null | $g/getcov/get_cov normal_orig_cov 
 	echo Background cluster generation for normal BAM
 	sh $g/clustering/make_clusters.sh normal.bam 0 &
 echo Waiting for cluster generation to finish ... 

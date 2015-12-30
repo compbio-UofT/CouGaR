@@ -25,20 +25,20 @@ if [ ! -d "${g}" ] ; then
 	echo "Please update $COUGARD/cougar_conf.sh"
 	exit
 fi
-if [ ! -f ${gurobi} ] ; then
-	echo "Failed to find GUROBI installed... ${gurobi} is not valid"
-	echo "Please update $COUGARD/cougar_conf.sh"
-	exit
-fi
+#if [ ! -f ${gurobi} ] ; then
+#	echo "Failed to find GUROBI installed... ${gurobi} is not valid"
+#	echo "Please update $COUGARD/cougar_conf.sh"
+#	exit
+#fi
 #test if gurobi works
-${gurobi} ResultFile=${g}/cplex/test.sol ${g}/cplex/test.lp  > ${g}/gurobi.log
-diff ${g}/cplex/test.sol ${g}/cplex/test.sol
-if ! cmp -s "${g}/cplex/test.sol" "${g}/cplex/test.sol_correct"
-then
-	echo "Gurboi does not seem to be working.. please check ${g}/gurobi.log for more details"
-	echo "Maybe the library path has not been set for gurobi? please set this in cougar_conf.sh"
-	exit
-fi
+#${gurobi} ResultFile=${g}/cplex/test.sol ${g}/cplex/test.lp  > ${g}/gurobi.log
+#diff ${g}/cplex/test.sol ${g}/cplex/test.sol
+#if ! cmp -s "${g}/cplex/test.sol" "${g}/cplex/test.sol_correct"
+#then
+#	echo "Gurboi does not seem to be working.. please check ${g}/gurobi.log for more details"
+#	echo "Maybe the library path has not been set for gurobi? please set this in cougar_conf.sh"
+#	exit
+#fi
 if [ ! -f ${s} ] ; then
 	echo "Failed to find SAMTOOLS installed... ${s} is not valid"
 	echo "Please update $COUGARD/cougar_conf.sh"
