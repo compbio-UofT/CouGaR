@@ -41,6 +41,19 @@ function moverlap {
 	$g/getcov/normalize_stream_cov normal_orig_cov.gz tumor_orig_cov.gz $hgref/${ref}.fa.gz tumor_cov.gz normal_cov.gz
 
 	#create a log of coverage for both samples that is human readable
+	
+	if [ -e tumor_cov.gz.log ]; then 
+		grep Average tumor_cov.gz.log > /dev/null
+		if [ $? -eq 1 ] ; then
+			rm tumor_cov.gz.log
+		fi
+	fi
+	if [ -e normal_cov.gz.log ]; then 
+		grep Average normal_cov.gz.log > /dev/null
+		if [ $? -eq 1 ] ; then
+			rm normal_cov.gz.log
+		fi
+	fi
 	if [ ! -e tumor_cov.gz.log ] ; then
 		$g/getcov/print_cov tumor_cov.gz $hgref/${ref}.fa.gz > tumor_cov.gz.log
 	fi

@@ -8,6 +8,8 @@ gt=/usr/bin/gtdownload
 key=/dupa-filer/misko/tcga/cghub.key #required if you are downloading TCGA data
 p=$g/dependencies/picard-tools-1.56/ #this should be in this repo.. 
 gurobi=/dupa-filer/misko/gurobi/gurobi650/linux64/bin/gurobi_cl
+gracket=/dupa-filer/misko/tcga/paper/gits/racket-6.2/bin/gracket
+cougarviz=$g/cougarviz
 
 hgref=$g/refs
 
@@ -25,6 +27,11 @@ if [ ! -d "${g}" ] ; then
 	echo "Please update $COUGARD/cougar_conf.sh"
 	exit
 fi
+if [ ! -d "${cougarviz}" ] ; then
+	echo "Failed to find GouGaR-viz path installed... ${cougarviz} is not valid"
+	echo "Please update $COUGARD/cougar_conf.sh"
+	exit
+fi
 if [ ! -f ${gurobi} ] ; then
 	echo "Failed to find GUROBI installed... ${gurobi} is not valid"
 	echo "Please update $COUGARD/cougar_conf.sh"
@@ -37,6 +44,11 @@ if ! cmp -s "${g}/cplex/test.sol" "${g}/cplex/test.sol_correct"
 then
 	echo "Gurboi does not seem to be working.. please check ${g}/gurobi.log for more details"
 	echo "Maybe the library path has not been set for gurobi? please set this in cougar_conf.sh"
+	exit
+fi
+if [ ! -f ${gracket} ] ; then
+	echo "Failed to find RACKET installed... ${gracket} is not valid"
+	echo "Please update $COUGARD/cougar_conf.sh"
 	exit
 fi
 if [ ! -f ${s} ] ; then

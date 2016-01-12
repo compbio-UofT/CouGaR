@@ -488,6 +488,11 @@ struct_stats * stream_read_cov(char * filename, int bins, bool correct, struct_s
 			}
 			if (cov->chr>25) {
 				cerr << "WHAT CHR" << cov->chr << endl;
+				continue;
+			}
+			if (cov->pos>=lengths[cov->chr-1]) {
+				cerr << "falling off the chromosome... " << cov->chr << " " << cov->pos << " END is " << lengths[cov->chr-1] << endl;
+				continue;
 			}
 	
 			if (correct) {	

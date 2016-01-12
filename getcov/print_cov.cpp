@@ -206,6 +206,11 @@ long * read_cov(char * filename, bool normal, int bins) {
 		}
 		if (cov->chr>25) {
 			cerr << "WHAT CHR" << cov->chr << endl;
+			continue;
+		}
+		if (cov->pos>=lengths[cov->chr-1]) {
+			cerr << "fell off the chromosome " << cov->chr << " " << cov->pos << endl;
+			continue;
 		}
 		int current_gc=gc(cov->chr,cov->pos,300);
 		
@@ -399,7 +404,7 @@ char ** read_fasta(char * filename) {
 	}
 	cout << "Finished reference processing" << endl;
 	for (int i=0; i<24; i++) {
-		cerr << "chr "<< i+1 << lengths[i] << endl;
+		cerr << "chr "<< i+1 << " " << lengths[i] << endl;
 	}
 	return fsta;	
 }
