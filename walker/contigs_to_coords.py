@@ -85,7 +85,8 @@ def read_problem_file(filename):
 	h.close()
 
 
-
+#read in the integer programming solution
+#return a list of tuples, (contigID , copy count)
 def read_sol_file(fname):	
 	ip_sol_file=open(fname)
 	cis=[]
@@ -96,15 +97,16 @@ def read_sol_file(fname):
 				cis.append((int(line[0][1:]),int(line[1])*m))
 	return cis
 
+#takes a file name of decomposed paths and returns a list of tuples, (type,path)
 def read_simple_contigs_file(fname):
 	simple_contigs=[]
 	simple_contigs_f=open(fname)
 	for line in simple_contigs_f:
-		if line[0]!="L":
+		if line[0]!="L": #make sure this is a line or a loop
 			continue
-		ty=line[:4]
-		line=line[5:]
-		simple_contigs.append((ty,eval(line.strip())[0]))
+		ty=line[:4] #the type, line or loop
+		line=line[5:] #the description of the pay
+		simple_contigs.append((ty,eval(line.strip())[0])) #append the type and the list of nodes
 	return simple_contigs
 
 def read_genes(fname):
@@ -137,11 +139,13 @@ def read_onco(onco_filename):
 		onco.add(line.strip())
 	return onco
 
+#take a list of genes a genomic interval
+#port a dictionary of gene occurences and gene interrupts 
 def gene_intersect(ogenes,z):
 	chr,s,e=z
 	genes={}
 	genes_interrupted={}
-	for gchr,gs,ge,gg,gst in ogenes:
+	for gchr,gs,ge,gg,gst in ogenes: # gene chromosome, gene start, gene end, gene name, gene strand
 		if gchr!=chr:
 			continue
 		mx=max(gs,s)
@@ -153,8 +157,6 @@ def gene_intersect(ogenes,z):
 				#genes.add(gg)
 				if gg not in genes:
 					genes[gg]=0
-				if gg=="KCNMB3":
-					print gg,z
 				genes[gg]+=1
 			else:
 				#partial
@@ -185,23 +187,28 @@ for line in groups_f:
 
 
 genes=read_genes(genes_filename)
-cis=read_sol_file(ip_sol_filename)
+cis=read_sol_file(ip_sol_filename) # cis a list of tuples, (contigID,copyCOunt)
 simple_contigs=read_simple_contigs_file(simple_contigs_filename)
 read_problem_file(problem_filename)
 onco=read_onco(onco_filename)
 simple_walks=[]
 
 print cis
-for ci,cm in cis:
+#map the simple walks from nodes back to genomic intervals
+#simple contigs is tuples of (type, path) - type in ['LOOP','LINE'], path is a list of nodes
+#simple walks becomes a list of tuples (type in ['LOOP','LINE'],copycount, list of genomic edges)
+for ci,cm in cis: #ci - contig id, cm - contig copy count (contig mupliple)
 	ty,c=simple_contigs[ci]
 	walk=[]
 	for x in range(len(c)):
-		fn=c[x]
-		tn=c[(x+1)%len(c)]
+		fn=c[x] #from node
+		tn=c[(x+1)%len(c)] #to node
 		fnp=node_to_pos[fn]
 		tnp=node_to_pos[tn]
+		#if its not in the dicitonary then this is a somatic edge?
 		if (fnp,tnp) not in genomic_edges and (tnp,fnp) not in genomic_edges:
 			continue
+		#if this is not a sequential edge then just add it, otherwise extend
 		if len(walk)==0 or walk[-1][1]!=fnp:
 			walk.append([fnp,tnp])
 		else:
@@ -295,8 +302,6 @@ def bin_genes(bins,genes):
 	for gene in genes:
 		for b in bins:
 			if genes[gene]>=b:
-				if gene=="TNRC6C":
-					print genes[gene],b
 				genes_amp[b][gene]=genes[gene]
 				#break
 	#format string
