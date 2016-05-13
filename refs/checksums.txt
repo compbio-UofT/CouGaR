@@ -1,0 +1,2 @@
+a200c09df7f3c89f46d7d49fa53ce568  refs/hg18.fa.gz
+f6f00f7b3c6ca1035ff0fa81d44fa40f  refs/hg19.fa.gz
